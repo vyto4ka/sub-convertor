@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  vless-merger:
+    build: .
+    container_name: vless-merger
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./sources.txt:/app/data/sources.txt
