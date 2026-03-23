@@ -9,4 +9,4 @@ services:
       - "8000:8000"
     volumes:
       - ./sources.txt:/app/data/sources.txt
-      - ./certs:/app/certs:ro  # Монтируем сертификаты (только чтение)
+      - ./certs:/app/certs:ro

@@ -8,7 +8,6 @@ from fastapi import FastAPI, Response
 app = FastAPI()
 
 SOURCES_FILE = "/app/data/sources.txt"
-# Пути к сертификатам внутри контейнера
 CERT_FILE = "/app/certs/fullchain.pem"
 KEY_FILE = "/app/certs/privkey.pem"
 
@@ -18,9 +17,7 @@ def decode_base64(text: str) -> str:
     text = text.strip()
     text += "=" * ((4 - len(text) % 4) % 4)
     try:
-        # Пытаемся декодировать, если это Base64 подписка
-        decoded = base64.b64decode(text).decode('utf-8', errors='ignore')
-        return decoded
+        return base64.b64decode(text).decode('utf-8', errors='ignore')
     except (binascii.Error, ValueError):
         return text
 
@@ -31,7 +28,6 @@ async def fetch_subscription(client: httpx.AsyncClient, url: str) -> list[str]:
         resp.raise_for_status()
         
         text = resp.text
-        # Если в ответе нет протоколов (vless:// и т.д.), скорее всего это Base64
         if "://" not in text:
             text = decode_base64(text)
             
@@ -39,13 +35,12 @@ async def fetch_subscription(client: httpx.AsyncClient, url: str) -> list[str]:
             sub_line = sub_line.strip()
             if sub_line and not sub_line.startswith(("#", "//")):
                 links.append(sub_line)
-    except Exception as e:
-        print(f"[!] Ошибка при скачивании {url}: {e}")
+    except Exception:
+        pass
     
     return links
 
 async def get_all_links():
-    """Общая логика сбора ссылок из файла и по URL"""
     combined_links = []
     http_urls = []
     
@@ -70,12 +65,10 @@ async def get_all_links():
         for sub_links in results:
             combined_links.extend(sub_links)
     
-    # Убираем дубликаты
     return list(dict.fromkeys(combined_links))
 
 @app.get("/my-secret-sub")
 async def get_subscription_encoded():
-    """Версия с Base64 (стандартная для многих клиентов)"""
     links = await get_all_links()
     if links is None:
         return Response(content="sources.txt not found", status_code=404)
@@ -91,7 +84,6 @@ async def get_subscription_encoded():
 
 @app.get("/my-sub-plain")
 async def get_subscription_plain():
-    """Версия без Base64 (в открытом виде)"""
     links = await get_all_links()
     if links is None:
         return Response(content="sources.txt not found", status_code=404)
@@ -106,11 +98,9 @@ async def get_subscription_plain():
 if __name__ == "__main__":
     import uvicorn
     
-    # Проверяем наличие сертификатов
     use_ssl = os.path.exists(CERT_FILE) and os.path.exists(KEY_FILE)
     
     if use_ssl:
-        print("[+] Запуск с поддержкой HTTPS")
         uvicorn.run(
             "main:app", 
             host="0.0.0.0", 
@@ -119,5 +109,4 @@ if __name__ == "__main__":
             ssl_certfile=CERT_FILE
         )
     else:
-        print("[!] Сертификаты не найдены. Запуск по HTTP")
         uvicorn.run("main:app", host="0.0.0.0", port=8000)
